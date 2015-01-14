@@ -1,0 +1,17 @@
+CC=gcc
+CFLAGS=-Wall -std=c99
+
+matrix.o: matrix.c matrix.h
+	$(CC) $(CFLAGS) -c matrix.c
+
+main.o: main.c matrix.h
+	$(CC) $(CFLAGS) -c main.c
+
+tester: main.o matrix.o
+	$(CC) $(CFLAGS) -o tester main.o matrix.o
+
+clean:
+	-rm -rf *.o matrix_multiply tester
+
+tar:
+	tar cvf matrix.tar *.c *.h makefile*
