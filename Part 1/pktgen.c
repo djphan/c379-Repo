@@ -230,6 +230,13 @@ int main(int argc, char * argv[])
 	{
 		port = atoi(argv[1]);
 
+		/* Check for atoi problem arguments */
+		if (port == 0)
+		{
+			printf("Improper port inputted (cannot be 0 or a string)\n");
+			exit(1);
+		}
+
 		filepath = argv[2];
 		file = fopen(filepath, "w+");
 	

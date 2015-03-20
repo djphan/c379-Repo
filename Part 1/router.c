@@ -67,6 +67,14 @@ int main(int argc, char * argv[])
 	else 
 	{
 		port = atoi(argv[1]);
+
+		/* Check for atoi problem arguments */
+		if (port == 0)
+		{
+			printf("Improper port inputted (cannot be 0 or a string)\n");
+			exit(1);
+		}
+
 		rtTablePath = argv[2];
 		stasticsFilePath = argv[3];
 

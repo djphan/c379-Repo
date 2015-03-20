@@ -16,8 +16,6 @@ uint32_t localip = 2130706433;  /* 127.0.0.1 */
 int port;
 char *file_name;
 
-
-
 const char argument_warning[] = "Improper use of arguments. "
 								"Please use the following argument: \n"
 								"./file_client <ip address> <port number to "
@@ -40,13 +38,22 @@ int main(int argc, char * argv[])
 	else 
 	{
 
-		
 		serv_ip =  (uint32_t) inet_addr(argv[1]);
 		port = atoi(argv[2]);
-		file_name = argv[3];
-		timeout.tv_sec = 0;
-		timeout.tv_usec = 500000000;
 
+		/* Check for atoi problem arguments */
+		if (port == 0)
+		{
+			printf("Improper port inputted (cannot be 0 or a string)\n");
+			exit(1);
+		}
+
+		file_name = argv[3];
+
+		timeout.tv_sec = 5;
+		timeout.tv_usec = 0;
+
+		/* Set the values of the sockets */
 		memset(&server_socket, 0, sizeof(server_socket));
 		server_socket.sin_family = AF_INET;
 		server_socket.sin_port = htons(port);
@@ -80,7 +87,7 @@ int main(int argc, char * argv[])
 			
 			if (recvfrom(clisock, buffer, 1024, 0, &client_socket, &cli_len) != -1)
 			{
-
+				sendto(clisock, file_name, strlen(file_name) + 1, 0, &server_socket, sizeof(server_socket));
 			} 
 			else 
 			{
@@ -88,8 +95,6 @@ int main(int argc, char * argv[])
 				exit(1);
 			}
 			
-
-
 		}
 
 		close(clisock);

@@ -46,7 +46,6 @@ int main(int argc, char * argv[])
 	char buffer[1024];
 
 	struct sigaction sa;
-	socklen_t clientlen;
 
 	pid_t pid;
 	u_long p;
@@ -60,26 +59,38 @@ int main(int argc, char * argv[])
 	{
 		port = atoi(argv[1]);
 
+		/* Check for atoi problem arguments */
+		if (port == 0)
+		{
+			printf("Improper port inputted (cannot be 0 or a string)\n");
+			exit(1);
+		}
+
+		/* Set the server sockets */
 		memset(&server_socket, 0, sizeof(server_socket));
 		server_socket.sin_family = AF_INET;
 		server_socket.sin_port = htons(port);
 		server_socket.sin_addr.s_addr = htonl(localip);
 
-		if ( ( sersock = socket(AF_INET, SOCK_DGRAM, IPPROTO_UDP) ) == -1 ) {
+		if ( ( sersock = socket(AF_INET, SOCK_DGRAM, IPPROTO_UDP) ) == -1 ) 
+		{
 			printf("%s", sockerr);
 			exit(1);
 		}
 
-		if (bind(sersock, (struct sockadder *) &server_socket, sizeof(server_socket)) == -1) {
+		if (bind(sersock, (struct sockaddr *) &server_socket, sizeof(server_socket)) < 0) 
+		{
 			printf("%s", binderr);
 			exit(1);
 		}
+
 		/*
 		if (listen(sersock, 3) == -1) {
 			printf("%s\n", listenerr);
 			exit(1);
 		}
 		*/
+
 
 		sa.sa_handler = kidhandler;
 	    sigemptyset(&sa.sa_mask);
@@ -89,22 +100,20 @@ int main(int argc, char * argv[])
         {
                 err(1, "sigaction failed");
         }
-
+		
 		printf("File server setup and listening for connections on port: %d\n", port);
-
-		/* Timer Code */
 
 		while (1) 
 		{
-			if ( recvfrom(sersock, buffer, 1024, 0, &client_socket, &cli_len) != -1)
-			{
+			if ( recvfrom(sersock, buffer, 1024, 0, &server_socket, sizeof(server_socket) != -1) )
+			{/*
 				printf("\nReceived packet from %s:%d  Data: %s\n\n", 
 					   inet_ntoa(client_socket.sin_addr), ntohs(client_socket.sin_port), buffer);
-				buffer = 
 				printf("\nSending Stuff: %s to %s:%d\n", buffer, inet_ntoa(client_socket.sin_addr), 
 					   ntohs(client_socket.sin_port));
 
 				sendto(sersock, buffer, strlen(buffer) + 1, 0, &client_socket, sizeof(client_socket));
+			*/
 			}
 		}
 
