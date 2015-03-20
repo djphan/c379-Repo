@@ -30,8 +30,8 @@ int main(int argc, char * argv[])
 	} 
 	else 
 	{
+		
 		serv_ip = (int) inet_addr(argv[1]);
-		printf("%d\n", serv_ip);
 		port = atoi(argv[2]);
 		file_name = argv[3];
 

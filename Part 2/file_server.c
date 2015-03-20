@@ -92,14 +92,16 @@ int main(int argc, char * argv[])
         }
 
 		printf("File server setup and listening for connections on port: %d\n", port);
+
+		/* Timer Code */
+
 		while (1) 
 		{
-
 			if ( recvfrom(sersock, buffer, 1024, 0, &client_socket, &cli_len) != -1)
 			{
 				printf("\nReceived packet from %s:%d  Data: %s\n\n", 
 					   inet_ntoa(client_socket.sin_addr), ntohs(client_socket.sin_port), buffer);
-
+				buffer = 
 				printf("\nSending Stuff: %s to %s:%d\n", buffer, inet_ntoa(client_socket.sin_addr), 
 					   ntohs(client_socket.sin_port));
 

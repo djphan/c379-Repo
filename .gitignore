@@ -27,3 +27,12 @@
 *.i*86
 *.x86_64
 *.hex
+
+
+#Temps
+*.c~
+makefile~
+pktgen
+router
+file_client
+file_server
