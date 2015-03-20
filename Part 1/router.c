@@ -154,7 +154,7 @@ int main(int argc, char * argv[])
 		fclose(rtFile);
 
 		sock = buildSocket(port);
-
+		
 		while (1)
 		{
 			bzero(buff, MAXBUFF);

@@ -48,7 +48,7 @@ void exitHandler(int signum);
 char *ipPicker(int pktType);
 int compareSrcDest (int src, int dest);
 void writeToPackets(FILE *file, char * filepath);
-int socketSetup (int port);
+int buildSocket (int port);
 
 /* Packet Struct Definition */
 typedef struct 
