@@ -14,9 +14,8 @@
 #include <errno.h>
 
 /* Global Variables */
-int localip = 2130706433;  /* 127.0.0.1 */
+uint32_t localip = 2130706433;  /* 127.0.0.1 */
 int port; 
-
 
 const char argument_warning[] = "Improper use of arguments. "
 								"Please use the following argument: \n"
