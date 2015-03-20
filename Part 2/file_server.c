@@ -13,18 +13,21 @@
 #include <unistd.h> /* Misc Symbolic constants and types */
 #include <errno.h>
 
+#define LOCAL 2130706433  /* 127.0.0.1 */
+
 #define CHUNK 1024
 #define MAXBUFF 65535
 
 /* Global Variables */
-const char argument_warning[] = "Improper use of arguments. "
+const char argument_warning[] = "\nImproper use of arguments. "
 								"Please use the following argument: \n"
 								"./file_server <port number to listen to> "
-								"<file serve path> <output log file path> ";
+								"<file serve directory path> "
+								"<output log file directory path> ";
 
-const char *sockerr = "Error in creating socket\n"; 
-const char *binderr = "Error in binding the socket\n";
-const char *listenerr = "Error in socket listening\n";
+const char *sockerr = "\nError in creating socket\n"; 
+const char *binderr = "\nError in binding the socket\n";
+const char *listenerr = "\nError in socket listening\n";
 
 /* Prototyping */
 static void kidhandler(int signum);
@@ -40,12 +43,11 @@ static void usage()
 */
 
 /* Handler to prevent zombies */
-/*
-static void kidhandler(int signum) { */
-	/* signal handler for SIGCHLD *//*
+static void kidhandler(int signum) {
 	waitpid(WAIT_ANY, NULL, WNOHANG);
 }
-*/
+
+
 int buildSocket (int port)
 {
 	struct sockaddr_in server_socket; 
@@ -60,7 +62,7 @@ int buildSocket (int port)
 	/* Set the server sockets */
 	memset(&server_socket, 0, sizeof(server_socket));
 	server_socket.sin_family = AF_INET;
-	server_socket.sin_port = htons(9999);
+	server_socket.sin_port = htons(port);
 	server_socket.sin_addr.s_addr = htonl(INADDR_ANY);
 
 	if (bind(sersock, (struct sockaddr *) &server_socket, sizeof(server_socket)) < 0) 
@@ -75,15 +77,14 @@ int buildSocket (int port)
 int main(int argc, char * argv[]) 
 {
 	struct sockaddr_in client_socket;
-	int port, sersock, cli_len=sizeof(client_socket);
+	int port, sersock, cli_len=sizeof(client_socket), pathSize;
+	char buffer[MAXBUFF], *filepath, *dirpath;
+	char fileBuffer[CHUNK];
 
-	char buffer[MAXBUFF];
-	/*
-	struct sigaction sa;
+	FILE *sendFile, *logFile;
 
-	pid_t pid;
-	u_long p;
-	*/
+	/* Process information */
+	pid_t pid, sid;
 
 	if (argc !=4) 
 	{
@@ -92,9 +93,8 @@ int main(int argc, char * argv[])
 	} 
 	else 
 	{
-
 		port = atoi(argv[1]);
-
+		dirpath = argv[2];
 
 		/* Check for atoi problem arguments */
 		if (port == 0)
@@ -103,23 +103,9 @@ int main(int argc, char * argv[])
 			exit(1);
 		}
 
-
 		sersock = buildSocket(port);
 
-
-		/* Define Client Sock */
-		client_socket.sin_family = AF_INET;
-		client_socket.sin_port = htons(port);
-		client_socket.sin_addr.s_addr = htonl(INADDR_ANY);
-
 		/*
-		if (listen(sersock, 3) == -1) {
-			printf("%s\n", listenerr);
-			exit(1);
-		}
-		
-
-
 		sa.sa_handler = kidhandler;
 	    sigemptyset(&sa.sa_mask);
         sa.sa_flags = SA_RESTART;
@@ -133,9 +119,26 @@ int main(int argc, char * argv[])
 		
 		while (1) 
 		{
+			bzero(buffer, MAXBUFF);
+
 			if ( recvfrom(sersock, buffer, MAXBUFF, 0, (struct sockaddr *) &client_socket, &cli_len) != -1 )
 			{
-				printf("%s", buffer);	
+				/* Can't abstract to function ??  Create file path */
+				pathSize = (snprintf(NULL, 0, "%s/%s", dirpath, buffer) + 1);
+				filepath = malloc(pathSize);
+				snprintf(filepath, pathSize, "%s/%s", dirpath, buffer);
+				printf("%s\n", filepath);
+				sendto(sersock, filepath, (strlen(filepath) + 1), 0, 
+						(struct sockaddr*) &client_socket, sizeof(client_socket));
+
+
+				//sendFile = fopen(filepath, "r");
+				//while fgets(fileBuffer, CHUNK, sendFile)
+
+				
+
+				
+
 			}
 		}
 		

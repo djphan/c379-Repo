@@ -282,6 +282,8 @@ int main(int argc, char * argv[])
 		{
 			fclose(file);
 			sock = buildSocket(port);
+
+			/* Define Client Sock */
 			sockrouter.sin_family = AF_INET;
 			sockrouter.sin_port = htons(port);
 			sockrouter.sin_addr.s_addr = htonl(INADDR_ANY);

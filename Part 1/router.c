@@ -85,8 +85,8 @@ void readRT(struct rtable *rtableValues)
 
 int buildSocket (int port)
 {
-	struct sockaddr_in sockrouter; 
 	int sock;
+	struct sockaddr_in sockrouter; 
 
 	if ( ( sock = socket(AF_INET, SOCK_DGRAM, IPPROTO_UDP) ) == -1 )
 	{
