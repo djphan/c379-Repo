@@ -107,13 +107,18 @@ int main(int argc, char * argv[])
 			if ( recvfrom(clisock, buffer, MAXBUFF, 0, 
 				 (struct sockaddr *) &server_socket, &sersocklen) != -1 )
 			{
+				if ( strchr("Given file name does not exist, please resend request. \n", *buffer)) 
+				{
+					/* Auto Exit Client For User */
+					printf("%s", buffer);
+					break;	
+				}
 
 				if ( (strlen(buffer) == 1) && ( strchr(dollar, *buffer) ) ) 
 				{
 					/* Find Dollar Sign and Ignore It. */
 					printf("\n");
 					// Do something here
-					//exit(1);
 				} else {
 					buffer[MAXBUFF-1] = 0;
 					printf("%s", buffer);
@@ -122,15 +127,13 @@ int main(int argc, char * argv[])
 			} 
 			else 
 			{
-				printf("\n\nTimeout\n");
-				
-				//sendto(clisock, file_name, (strlen(file_name) + 1), 0, 
-										//(struct sockaddr*) &server_socket, sizeof(server_socket));
-				exit(1);
+				printf("\nFile either timed out or is finished\n");
+				break;
 			}
 			
 		}
-
+		
+		/* Close down Sockets */
 		close(clisock);
 
 	}

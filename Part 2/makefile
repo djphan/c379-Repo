@@ -10,7 +10,7 @@ file_client: file_client.c
 	$(CC) $(CFLAGS) -o file_client file_client.c
 
 clean:
-	-rm -rf *.o file_server file_client *.out 
+	-rm -rf *.o file_server file_client *.out log* *.log 
 
 tar:
-	tar cvf 379_a2p2.tar *.c *.h makefile*
+	tar cvf 379_a2p2.tar *.c *.h makefile* 
