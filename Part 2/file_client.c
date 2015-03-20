@@ -10,13 +10,12 @@
 #include <unistd.h> /* Misc Symbolic constants and types */
 #include <errno.h>
 
-#define SERVERPORT 9999
 #define MAXBUFF 1024
 
 /* Global Variables */
-
 char *file_name;
 
+const char *dollar = "$";
 const char argument_warning[] = "Improper use of arguments. "
 								"Please use the following argument: \n"
 								"./file_client <ip address> <port number to "
@@ -108,8 +107,18 @@ int main(int argc, char * argv[])
 			if ( recvfrom(clisock, buffer, MAXBUFF, 0, 
 				 (struct sockaddr *) &server_socket, &sersocklen) != -1 )
 			{
-				buffer[MAXBUFF] = 0;
-				printf("%s", buffer);
+
+				if ( (strlen(buffer) == 1) && ( strchr(dollar, *buffer) ) ) 
+				{
+					/* Find Dollar Sign and Ignore It. */
+					printf("\n");
+					// Do something here
+					//exit(1);
+				} else {
+					buffer[MAXBUFF-1] = 0;
+					printf("%s", buffer);
+				}
+
 			} 
 			else 
 			{

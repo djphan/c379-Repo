@@ -14,11 +14,11 @@
 #include <errno.h>
 
 #define LOCAL 2130706433  /* 127.0.0.1 */
-
 #define CHUNK 1024
 #define MAXBUFF 65535
 
 /* Global Variables */
+const char *dollar = "$";
 const char argument_warning[] = "\nImproper use of arguments. "
 								"Please use the following argument: \n"
 								"./file_server <port number to listen to> "
@@ -77,7 +77,7 @@ int buildSocket (int port)
 int main(int argc, char * argv[]) 
 {
 	struct sockaddr_in client_socket;
-	int port, sersock, cli_len=sizeof(client_socket), pathSize;
+	int port, sersock, cli_len=sizeof(client_socket), pathSize, lastbuffer;
 	char buffer[MAXBUFF], *filepath, *dirpath;
 	char fileBuffer[CHUNK];
 
@@ -127,17 +127,37 @@ int main(int argc, char * argv[])
 				pathSize = (snprintf(NULL, 0, "%s/%s", dirpath, buffer) + 1);
 				filepath = malloc(pathSize);
 				snprintf(filepath, pathSize, "%s/%s", dirpath, buffer);
+
+
+				sendFile = fopen(filepath, "r");
+				if (sendFile == 0) {
+					printf("Cannot open file at: %s\n", filepath); 
+					exit(0);
+
+				}
+				
+				lastbuffer = 0;
+				while ( fgets(fileBuffer, CHUNK, sendFile) !=NULL) 
+				{
+					lastbuffer = strlen(fileBuffer);
+					sendto(sersock, fileBuffer, (strlen(fileBuffer) + 1), 0, 
+							(struct sockaddr*) &client_socket, sizeof(client_socket));					
+				}
+
+				if (lastbuffer % CHUNK == 0) 
+				{
+					sendto(sersock, dollar, (strlen(dollar) + 1), 0, 
+							(struct sockaddr*) &client_socket, sizeof(client_socket));
+				}
+
 				printf("%s\n", filepath);
-				sendto(sersock, filepath, (strlen(filepath) + 1), 0, 
+
+				
+				sendto(sersock, "$\0", (2), 0, 
 						(struct sockaddr*) &client_socket, sizeof(client_socket));
 
-
-				//sendFile = fopen(filepath, "r");
-				//while fgets(fileBuffer, CHUNK, sendFile)
-
 				
-
-				
+				//
 
 			}
 		}
