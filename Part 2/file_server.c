@@ -13,6 +13,8 @@
 #include <unistd.h> /* Misc Symbolic constants and types */
 #include <errno.h>
 
+#define CHUNK 1024
+
 /* Global Variables */
 uint32_t localip = 2130706433;  /* 127.0.0.1 */
 int port; 
@@ -33,14 +35,41 @@ static void usage()
 	exit(1);
 }
 
+/* Handler to prevent zombies */
 static void kidhandler(int signum) {
 	/* signal handler for SIGCHLD */
 	waitpid(WAIT_ANY, NULL, WNOHANG);
 }
 
+int buildSocket (int port)
+{
+	struct sockaddr_in server_socket; 
+	int sersock;
+
+	if ( ( sersock = socket(AF_INET, SOCK_DGRAM, IPPROTO_UDP) ) == -1 ) 
+	{
+		printf("%s", sockerr);
+		exit(1);
+	}
+
+	/* Set the server sockets */
+	memset(&server_socket, 0, sizeof(server_socket));
+	server_socket.sin_family = AF_INET;
+	server_socket.sin_port = htons(9999);
+	server_socket.sin_addr.s_addr = htonl(INADDR_ANY);
+
+	if (bind(sersock, (struct sockaddr *) &server_socket, sizeof(server_socket)) < 0) 
+	{
+		printf("%s", binderr);
+		exit(1);
+	}
+
+	return sersock;
+}
+
 int main(int argc, char * argv[]) 
 {
-	struct sockaddr_in server_socket, client_socket;
+	struct sockaddr_in client_socket;
 	int sersock, cli_len=sizeof(client_socket);
 
 	char buffer[1024];
@@ -66,23 +95,12 @@ int main(int argc, char * argv[])
 			exit(1);
 		}
 
-		/* Set the server sockets */
-		memset(&server_socket, 0, sizeof(server_socket));
-		server_socket.sin_family = AF_INET;
-		server_socket.sin_port = htons(port);
-		server_socket.sin_addr.s_addr = htonl(localip);
+		sersock = buildSocket(port);
 
-		if ( ( sersock = socket(AF_INET, SOCK_DGRAM, IPPROTO_UDP) ) == -1 ) 
-		{
-			printf("%s", sockerr);
-			exit(1);
-		}
-
-		if (bind(sersock, (struct sockaddr *) &server_socket, sizeof(server_socket)) < 0) 
-		{
-			printf("%s", binderr);
-			exit(1);
-		}
+		/* Define Client Sock */
+		client_socket.sin_family = AF_INET;
+		client_socket.sin_port = htons(port);
+		client_socket.sin_addr.s_addr = inet_addr(host);
 
 		/*
 		if (listen(sersock, 3) == -1) {
@@ -105,7 +123,7 @@ int main(int argc, char * argv[])
 
 		while (1) 
 		{
-			if ( recvfrom(sersock, buffer, 1024, 0, &server_socket, sizeof(server_socket) != -1) )
+			if ( recvfrom(sersock, buffer, 1024, 0, (struct sockaddr *) &client_socket, sizeof(client_socket) != -1) )
 			{/*
 				printf("\nReceived packet from %s:%d  Data: %s\n\n", 
 					   inet_ntoa(client_socket.sin_addr), ntohs(client_socket.sin_port), buffer);

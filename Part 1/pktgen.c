@@ -2,22 +2,23 @@
 #include <netinet/in.h>
 #include <signal.h> /* Signals */
 #include <sys/socket.h> /* Sockets */
-#include <sys/types.h> 
+#include <sys/time.h>  
+#include <sys/types.h>
+#include <sys/wait.h> 
 #include <stdlib.h>
 #include <stdio.h> /* Std In/Out */
 #include <string.h>
 #include <unistd.h> /* Misc Symbolic constants and types */
 #include <errno.h>
 
+/* Definitions */
+#define LOCAL 2130706433  /* 127.0.0.1 */
+#define MAXBUFF 65535
+
 /* Global Variables */
-int localip = 2130706433;  /* 127.0.0.1 */
 int port;
 FILE *file; 
 char *filepath;
-
-/* Sockets */
-struct sockaddr_in si_me, si_other;
-int s, i, slen=sizeof(si_other);
 
 const char argument_warning[] = "Improper Number of arguments." 
 								"Please supply this command: \n"
@@ -47,6 +48,7 @@ void exitHandler(int signum);
 char *ipPicker(int pktType);
 int compareSrcDest (int src, int dest);
 void writeToPackets(FILE *file, char * filepath);
+int socketSetup (int port);
 
 /* Packet Struct Definition */
 typedef struct 
@@ -202,6 +204,34 @@ char * pktStringMaker(Packet packet, char* pktString)
 	return pktString;
 }
 
+int buildSocket (int port) 
+{
+	int sock;
+	struct sockaddr_in sockpktgen;
+
+	if ( ( sock = socket(AF_INET, SOCK_DGRAM, IPPROTO_UDP) ) < 0 )
+	{
+		printf("%s", sockerr);
+		exit(0);
+	}
+
+	/* Set Socket Paramters */
+	memset((char *) &sockpktgen, 0, sizeof(sockpktgen));
+	sockpktgen.sin_family = AF_INET;
+	sockpktgen.sin_port = htons(9999);
+	sockpktgen.sin_addr.s_addr = htonl(INADDR_ANY);
+
+	if (bind(sock, (struct sockaddr *) &sockpktgen, sizeof(sockpktgen)) == -1)
+	{
+		printf("%s", binderr);
+		exit(1);
+	} 		
+
+	printf("pktgen open and bind socket on port %d\n\n",  
+			ntohs(sockpktgen.sin_port));
+
+	return sock;
+}
 
 void exitHandler(int signum) 
 {
@@ -213,10 +243,12 @@ void exitHandler(int signum)
 
 int main(int argc, char * argv[]) 
 {
-	int src; 
-	int dest; 
-	int compareFlag = 0;
+	int src, dest, compareFlag = 0;
 	char *pktString;
+
+	/* Sockets */
+	struct sockaddr_in sockrouter;
+	int sock;
 
 	(void) signal(SIGINT, exitHandler); /* Initialize Handler */
 
@@ -249,26 +281,11 @@ int main(int argc, char * argv[])
 		else 
 		{
 			fclose(file);
+			sock = buildSocket(port);
+			sockrouter.sin_family = AF_INET;
+			sockrouter.sin_port = htons(port);
+			sockrouter.sin_addr.s_addr = htonl(INADDR_ANY);
 
-			if ( ( s = socket(AF_INET, SOCK_DGRAM, IPPROTO_UDP) ) == -1 )
-			{
-				printf("%s", sockerr);
-				exit(0);
-			}
-
-			memset((char *) &si_me, 0, sizeof(si_me));
-			si_me.sin_family = AF_INET;
-			si_me.sin_port = htons(port);
-			si_me.sin_addr.s_addr = htonl(localip); /* htonl(INADDR_ANY) for any interface on this machine */
-			
-			if ( bind(s, &si_me, sizeof(si_me)) == -1 )
-			{
-				printf("%s\n", binderr);
-				exit(0);
-			}			
-
-			printf("pktgen listening to %s:%d\n\n", inet_ntoa(si_me.sin_addr), ntohs(si_me.sin_port));
-		
 			while(1) 
 			{
 				/* From a2 specs, source is from A, B or C */
@@ -292,16 +309,22 @@ int main(int argc, char * argv[])
 					exit(0);
 				}
 
-				printf("\nSending: %s to %s:%d\n", pktString, inet_ntoa(si_other.sin_addr), ntohs(si_other.sin_port));
-				sendto(s, pktString, (strlen(pktString) + 1), 0, &si_other, sizeof(si_other));
+				printf("Sending: %s to Port: %d\n", pktString, 
+					ntohs(sockrouter.sin_port));
 
-				if (pkt_counter % 20 == 0) {
-					writeToPackets(file, filepath);
+				if (sendto(sock, pktString, (strlen(pktString) + 1), 0, 
+						(struct sockaddr*) &sockrouter, sizeof(sockrouter)))
+				{
+					if (pkt_counter % 20 == 0) {
+						writeToPackets(file, filepath);
+					}
+
+					pkt_counter += 1;
+					sleep(2);
 				}
 
-				pkt_counter += 1;
 			}
-			close(s);
+			close(sock);
 			exit(0);
 
 		}

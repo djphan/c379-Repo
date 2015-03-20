@@ -9,7 +9,9 @@
 #include <unistd.h> /* Misc Symbolic constants and types */
 #include <errno.h>
 
+/* Definitions */
 #define LOCAL 2130706433  /* 127.0.0.1 */
+#define MAXBUFF 65535
 
 /* Global Variables */
 int port;
@@ -17,20 +19,6 @@ char * rtTablePath;
 char * stasticsFilePath;
 FILE *rtFile;
 FILE *statsFile;
-
-
-struct sockaddr_in si_me, si_other;
-int s, i, slen=sizeof(si_other);
-char buf[128];
-
-/* RT Struct Definition */
-typedef struct 
-{
-	struct in_addr ipaddr;
-	int bytes;
-	char *destination;
-
-} rtable;
 
 int expPktNum = 0;
 int unRoutPktNum = 0;
@@ -48,21 +36,94 @@ const char *rtErr = "Error While Opening Routing Table";
 const char *sockerr = "Error in creating socket\n";
 const char *binderr = "Error in binding the socket\n"; 
 
+
+/* RT Struct Definition */
+struct rtable
+{
+	struct in_addr ipaddr;
+	int bytes;
+	char *destination;
+
+};
+
 /* Prototypes Definition */
-void readRT(char *rtTablePath);
+void exitHandler(int signum);
+void readRT(struct rtable *rtableValues); 
+
+/* Reads in the RT Format: 
+ * <IP Addr> <> <Destination Name>
+ */
+void readRT(struct rtable *rtableValues) 
+{
+	char rtContents[MAXBUFF], *IPdest, *bitNum, *destName;
+	const char strParseChar[2] = " ";
+	int counter = 0;
+
+	/* Check Condition Until The End of RT_A.txt */
+	while ( fgets(rtContents, MAXBUFF, rtFile)  != NULL)
+	{
+		/* Ignore blank lines */
+		if (strlen(rtContents) < 7) 
+		{
+			continue;
+		}
+		
+		/* String Parsing to Find */
+		IPdest = strtok(rtContents, strParseChar);
+		bitNum = strtok(NULL, strParseChar);
+		destName = strtok(NULL, strParseChar);
+
+		struct rtable entry = {
+			inet_addr(IPdest), atoi(bitNum), destName
+		};
+
+		rtableValues[counter] = entry;
+		counter+=1;
+	}
+
+}
+
+int buildSocket (int port)
+{
+	struct sockaddr_in sockrouter; 
+	int sock;
+
+	if ( ( sock = socket(AF_INET, SOCK_DGRAM, IPPROTO_UDP) ) == -1 )
+	{
+		printf("%s", sockerr);
+		exit(0);
+	}
+
+	/* Socket Setup */
+	memset((char *) &sockrouter, 0, sizeof(sockrouter));
+	sockrouter.sin_family = AF_INET;
+	sockrouter.sin_port = htons(port);
+	sockrouter.sin_addr.s_addr = htonl(INADDR_ANY);
+
+	/* Bind to specified socket */
+	if (bind(sock, (struct sockaddr*) &sockrouter, sizeof(sockrouter)) == -1)
+	{
+		printf("%s", binderr);
+		exit(1);
+	}
+
+	return sock;  
+}
+
 
 int main(int argc, char * argv[]) 
 {
+	// FIX DIS?
+	struct rtable rtableValues[3];
 
-	char rtContents[128];
-	const char strParseChar[2] = " ";
-	char *strToken;
-
+	struct sockaddr_in sockpktgen;
+	int sock, sockpktlength = sizeof(sockpktgen);
+	char buff[MAXBUFF];
 
 	if (argc !=4) 
 	{
 		printf("%s", argument_warning);
-		exit(0);
+		exit(1);
 	} 
 	else 
 	{
@@ -87,61 +148,27 @@ int main(int argc, char * argv[])
 			exit(0);
 		}
 
-		int counter = 0;
-
-		/* Check Condition Until The End of RT_A.txt */
-		while ( fgets(rtContents, 128, rtFile)  != NULL)
-
-		{
-			// TODO: Check this?
-			if (strlen(rtContents) < 3) 
-			{
-				continue;
-			}
-
-			//printf("%d\n", counter);
-			printf("%s", rtContents);
-			//printf("Str Len: %lu\n", strlen(rtContents));
-
-			/* String Parsing to Find */
-			strToken = strtok(rtContents, strParseChar);
-			while (strToken != NULL) 
-			{
-				printf("%s\n", strToken);
-				strToken = strtok(NULL, strParseChar);
-			}
-
-
-			counter+=1;
-		}
-
+		readRT(rtableValues);
+		printf(rtableValues[2].destination);
 
 		fclose(rtFile);
 
-		if ( ( s = socket(AF_INET, SOCK_DGRAM, IPPROTO_UDP) ) == -1 )
+		sock = buildSocket(port);
+
+		while (1)
 		{
-			printf("%s", sockerr);
-			exit(0);
+			bzero(buff, MAXBUFF);
+
+			if ( recvfrom(sock, buff, MAXBUFF, 0, 
+				 (struct sockaddr *) &sockpktgen, &sockpktlength) != -1)
+			{
+				printf("Received packet from Port: %d. %s\n", 
+						ntohs(sockpktgen.sin_port), buff);
+			}
+
 		}
 
-		memset((char *) &si_me, 0, sizeof(si_me));
-		si_me.sin_family = AF_INET;
-		si_me.sin_port = htons(port);
-		si_me.sin_addr.s_addr = htonl(LOCAL);    /* htonl(INADDR_ANY) for any interface on this machine */
-
-		si_other.sin_family = AF_INET;
-		si_other.sin_port = htons(port);
-		si_other.sin_addr.s_addr = htonl(LOCAL); 
-
-		printf("\n\nRouter listening to %s:%d\n\n", inet_ntoa(si_me.sin_addr), ntohs(si_me.sin_port));
-		strcpy(buf, argv[1]);
-		printf("\nSending %s to %s:%d\n", buf, inet_ntoa(si_other.sin_addr), ntohs(si_other.sin_port));
-		sendto(s, buf, strlen(buf) + 1, 0, &si_other, sizeof(si_other));
-
-		if ( recvfrom(s, buf, strlen(buf), 0, &si_other, &slen) != -1)
-			printf("\nReceived packet from %s:%d  Fact(%s): %s\n\n", inet_ntoa(si_other.sin_addr), ntohs(si_other.sin_port), argv[1], buf);
-
-		close(s);
+		close(sock);
 
 		}
 
