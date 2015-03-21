@@ -41,7 +41,7 @@ static int numCtoA = 0;
 static int numCtoB = 0;
 static int numInvalid = 0;
 
-char *payloadString = "Don\'t Panic";
+char *payloadString = "Don\'tPanic";
 
 /* Protyping */
 void exitHandler(int signum);
@@ -173,7 +173,7 @@ int findDest(int src)
 
 void writeToPackets(FILE *file, char * filepath) 
 {
-	fopen(filepath, "w+");
+	file = fopen(filepath, "w+");
 	fprintf(file, "NetA to NetB: %d\n", numAtoB);
 	fprintf(file, "NetA to NetC: %d\n", numAtoC);
 	fprintf(file, "NetB to NetA: %d\n", numBtoA);
@@ -221,12 +221,6 @@ int buildSocket (int port)
 	sockpktgen.sin_port = htons(9999);
 	sockpktgen.sin_addr.s_addr = htonl(INADDR_ANY);
 
-	if (bind(sock, (struct sockaddr *) &sockpktgen, sizeof(sockpktgen)) == -1)
-	{
-		printf("%s", binderr);
-		exit(1);
-	} 		
-
 	printf("pktgen open and bind socket on port %d\n\n",  
 			ntohs(sockpktgen.sin_port));
 
@@ -236,7 +230,6 @@ int buildSocket (int port)
 void exitHandler(int signum) 
 {
 	/* Handles ^C */
-	//printf("%s", c_catch);
 	writeToPackets(file, filepath);
 	exit(0);
 }
@@ -322,7 +315,7 @@ int main(int argc, char * argv[])
 					}
 
 					pkt_counter += 1;
-					sleep(2);
+					sleep(1);
 				}
 
 			}
