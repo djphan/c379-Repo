@@ -107,20 +107,29 @@ int main(int argc, char * argv[])
 			if ( recvfrom(clisock, buffer, MAXBUFF, 0, 
 				 (struct sockaddr *) &server_socket, &sersocklen) != -1 )
 			{
-				if ( strchr("Given file name does not exist, please resend request. \n", *buffer)) 
+				if ( strcmp("Given file name does not exist, please resend request. \n", buffer) == 0) 
 				{
 					/* Auto Exit Client For User */
 					printf("%s", buffer);
 					break;	
 				}
 
+
+
 				if ( (strlen(buffer) == 1) && ( strchr(dollar, *buffer) ) ) 
 				{
 					/* Find Dollar Sign and Ignore It. */
 					printf("\n");
-					// Do something here
-				} else {
-					buffer[MAXBUFF-1] = 0;
+					break;
+				} 
+				else if (strlen(buffer) < 1024)
+				{;
+					printf("%s", buffer);
+					printf("\n");
+					break;
+				}
+				else {
+					buffer[MAXBUFF] = 0;
 					printf("%s", buffer);
 				}
 

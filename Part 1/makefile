@@ -13,4 +13,4 @@ clean:
 	-rm -rf *.o pktgen router *.out stats*
 
 tar:
-	tar cvf 379_a2p1.tar *.c *.h makefile*
+	tar cvf 379djphan_a2p1.tar *.c makefile readme.txt

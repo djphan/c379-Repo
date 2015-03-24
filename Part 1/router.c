@@ -59,8 +59,9 @@ typedef struct
 /* Prototypes Definition */
 void exitHandler(int signum);
 void readRT(Packet packet) ;
-
-
+int compereSubNet (int length, char *pktIP, char *destIP) ;
+int buildSocket (int port);
+char *trimwhitespace(char *str);
 
 Packet reconstructPacket(char* buffer)
 {
@@ -107,7 +108,7 @@ void readRT(Packet packet)
 		/* String Parsing to Find */
 		IPdest = strtok(rtContents, strParseChar);
 		bitNum = strtok(NULL, strParseChar);
-		destName = strtok(NULL, strParseChar);
+		destName = trimwhitespace(strtok(NULL, strParseChar));
 
 		if (compereSubNet( atoi(bitNum), inet_ntoa(packet.dest_ip), IPdest) == 1)
 		{
@@ -115,36 +116,32 @@ void readRT(Packet packet)
 		}
 			
 	}
-	printf("strlen %d\n", strlen(destName));
-	printf("%s\n",destName);
+	
+	/* Invalid package completes the loop and returns a null*/
 	if (strlen(rtContents) == 1)
-	{	
-		printf("not\n");	
+	{		
 		unRoutPktNum +=1;
 		return;
 	}
 
-	if (strchr("0", *destName) != 0)
+	/* StrChr logic structure for Router Numbers*/
+	if (strcmp("0", destName) == 0)
 	{
 		delDirectNum += 1;
 		return;
 	}
 
-	if (strchr("RouterB", *destName) != 0)
+	if (strcmp("RouterB", destName) == 0)
 	{
-		printf("\n----\n");
-		printf("%c", destName[strlen(destName)-2]);
-		printf("----\n");
 		routBNum += 1;
 		return;
 	}
 
-	if (strchr("RouterC", *destName) != 0)
+	if (strcmp("RouterC", destName) == 0)
 	{
 		routCNum += 1;
 		return;
 	}
-
 
 }
 
@@ -168,6 +165,32 @@ int compereSubNet (int length, char *pktIP, char *destIP)
 	} else {
 		return 0;
 	}
+}
+
+
+/* White space trimming function due to RT issues taken on StackOverflow
+ * Solution provided by Adam Rosenfield
+ * http://stackoverflow.com/questions/122616/
+ * how-do-i-trim-leading-trailing-whitespace-in-a-standard-way
+ */
+char *trimwhitespace(char *str)
+{
+  char *end;
+
+  // Trim leading space
+  while(isspace(*str)) str++;
+
+  if(*str == 0)  // All spaces?
+    return str;
+
+  // Trim trailing space
+  end = str + strlen(str) - 1;
+  while(end > str && isspace(*end)) end--;
+
+  // Write new null terminator
+  *(end+1) = 0;
+
+  return str;
 }
 
 
@@ -250,11 +273,6 @@ int main(int argc, char * argv[])
 		
 		while (1)
 		{
-			printf("Exp %d\n", expPktNum);
-			printf(" A %d\n", delDirectNum);
-			printf("d %d\n", unRoutPktNum );
-			printf("B %d\n", routBNum);
-			printf("C %d\n", routCNum);
 			bzero(buff, MAXBUFF);
 
 			if ( recvfrom(sock, buff, MAXBUFF, 0, 

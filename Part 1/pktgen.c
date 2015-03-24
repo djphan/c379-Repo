@@ -40,6 +40,7 @@ static int numBtoC = 0;
 static int numCtoA = 0;
 static int numCtoB = 0;
 static int numInvalid = 0;
+static int localNum = 0;
 
 char *payloadString = "Don\'tPanic";
 
@@ -54,8 +55,8 @@ int buildSocket (int port);
 typedef struct 
 {
 	int pkt_id;
-	struct in_addr source_ip;
-	struct in_addr dest_ip;
+	char * source_ip;
+	char * dest_ip;
 	int ttl;
 	char *payload;
 } Packet;
@@ -117,6 +118,11 @@ int compareSrcDest(int src, int dest)
 	if (dest == 3) {
 		numInvalid += 1;
 	}
+	else if (src == 0 & dest == 0)
+	{
+		localNum += 1;
+	}
+
 	else if (src == 0 & dest == 1) 
 	{
 		numAtoB += 1;
@@ -158,7 +164,7 @@ int findDest(int src)
 
 	while (1) 
 	{
-		if (dest == src) 
+		if (dest == src && dest != 0) 
 		{
 			dest = (int) rand()%4;
 			continue;
@@ -181,6 +187,7 @@ void writeToPackets(FILE *file, char * filepath)
 	fprintf(file, "NetC to NetA: %d\n", numCtoA);
 	fprintf(file, "NetC to NetB: %d\n", numCtoB);
 	fprintf(file, "Invalid Destination: %d\n", numInvalid);
+	fprintf(file, "Packet Routed Locally: %d\n", localNum);
 	fclose(file);
 }
 
@@ -188,17 +195,14 @@ char * pktStringMaker(Packet packet, char* pktString)
 {
 	int pktStringsize = snprintf(NULL, 0, 
 						"%d, %s, %s, %d, %s", 
-						packet.pkt_id, 
-						inet_ntoa(packet.source_ip), 
-						inet_ntoa(packet.dest_ip), 
-						packet.ttl, packet.payload) +1;
+						packet.pkt_id, packet.source_ip, 
+						packet.dest_ip, packet.ttl, packet.payload) +1;
 
 	pktString = malloc(pktStringsize);
 
 	snprintf(pktString, pktStringsize, 
 			"%d, %s, %s, %d, %s", packet.pkt_id, 
-			inet_ntoa(packet.source_ip), 
-			inet_ntoa(packet.dest_ip), 
+			packet.source_ip, packet.dest_ip, 
 			packet.ttl, packet.payload );
 
 	return pktString;
@@ -218,7 +222,7 @@ int buildSocket (int port)
 	/* Set Socket Paramters */
 	memset((char *) &sockpktgen, 0, sizeof(sockpktgen));
 	sockpktgen.sin_family = AF_INET;
-	sockpktgen.sin_port = htons(9999);
+	sockpktgen.sin_port = htons(port);
 	sockpktgen.sin_addr.s_addr = htonl(INADDR_ANY);
 
 	printf("pktgen open and bind socket on port %d\n\n",  
@@ -289,8 +293,8 @@ int main(int argc, char * argv[])
 
 				Packet packet = { /* Create Packet Struct */
 					pkt_counter,
-					{ inet_addr(ipPicker(src)) },
-					{ inet_addr(ipPicker(dest)) },
+					ipPicker(src),
+					ipPicker(dest),
 					rand()%4 + 1, /* TTL */
 					payloadString
 				};

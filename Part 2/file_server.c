@@ -4,12 +4,14 @@
 #include <limits.h>
 #include <netinet/in.h>
 #include <signal.h> /* Signals */
+#include <sys/file.h>  
 #include <sys/socket.h> /* Sockets */
 #include <sys/types.h> 
 #include <sys/wait.h>
 #include <stdlib.h>
 #include <stdio.h> /* Std In/Out */
 #include <string.h>
+#include <time.h>
 #include <unistd.h> /* Misc Symbolic constants and types */
 #include <errno.h>
 
@@ -18,7 +20,15 @@
 #define MAXBUFF 65535
 
 /* Global Variables */
+FILE *sendFile, *logFile;
 const char *dollar = "$";
+
+char* clientIP;
+int clientPort;
+char *filesend;
+char * strstartTime;
+char * strfinTime;
+
 const char argument_warning[] = "\nImproper use of arguments. "
 								"Please use the following argument: \n"
 								"./file_server <port number to listen to> "
@@ -37,7 +47,6 @@ int buildSocket (int port);
 static void kidhandler(int signum) {
 	waitpid(WAIT_ANY, NULL, WNOHANG);
 }
-
 
 int buildSocket (int port)
 {
@@ -70,11 +79,14 @@ int main(int argc, char * argv[])
 {
 	struct sockaddr_in client_socket;
 	int port, sersock, cli_len=sizeof(client_socket), pathSize, lastbuffer;
-	int daeid, logcounter=0;
+	int daeid, logCounter=0;
 	char buffer[MAXBUFF], *filepath, *dirpath, *badpath;
 	char fileBuffer[CHUNK], *logpath;
+	
+	/* Logging Values */
+	const char *badtransmission = "Transmission Not Completed";
+	time_t startTime, finTime;
 
-	FILE *sendFile, *logFile;
 
 	/* Process information */
 	struct sigaction sa;
@@ -115,112 +127,153 @@ int main(int argc, char * argv[])
 		sersock = buildSocket(port);
 	
 		/* There be daemons in my code */
-		//daeid = daemon(1,1);
-		//if (daeid == -1) 
-		//{
-		//	printf("Daemonizing failed.\n");
-		//	exit(1);
-		//}
+		daeid = daemon(1,1);
+		if (daeid == -1) 
+		{
+			printf("Daemonizing failed.\n");
+			exit(1);
+		}
 
 		printf("File server setup and listening for connections on port: %d\n", port);
 		while (1) 
 		{
-			pid = fork();
-			if (pid == -1)
-			{
-				err(1, "Fork'd failed");
-				exit(1);
-			}
 
-			while (1) 
-			{
+			bzero(buffer, MAXBUFF);
+			bzero(fileBuffer, CHUNK);
+
+			if ( recvfrom(sersock, buffer, MAXBUFF, 0, (struct sockaddr *) &client_socket, &cli_len) != -1 )
+			{			
+
+				pid = fork();
+				if (pid == -1)
+				{
+					err(1, "Fork'd failed");
+					exit(1);
+				}
+
+				
 				if (pid != 0) 
 				{ 
-
-				/* Parent Process Doesnt Do Anything */
-				continue;
- 
+					/* Parent Process Doesnt Do Anything */
+					continue;
 				} 
 				else 
 				{ 
+
+					clientIP = inet_ntoa(client_socket.sin_addr);
+					clientPort = (int) client_socket.sin_port;
+					filesend = buffer;
+					startTime = time(NULL);
+					strstartTime = ctime(&startTime);
+					strtok(strstartTime, "\n"); 
+
 					/* Child Slave Process Does All The Work */
-					bzero(buffer, MAXBUFF);
-					bzero(fileBuffer, CHUNK);
+					/* Can't abstract to function ??  Create file path */
+					pathSize = (snprintf(NULL, 0, "%s/%s", dirpath, buffer) + 1);
+					filepath = malloc(pathSize);
+					snprintf(filepath, pathSize, "%s/%s", dirpath, buffer);
 
-					if ( recvfrom(sersock, buffer, MAXBUFF, 0, (struct sockaddr *) &client_socket, &cli_len) != -1 )
-					{
-						/* Can't abstract to function ??  Create file path */
-						pathSize = (snprintf(NULL, 0, "%s/%s", dirpath, buffer) + 1);
-						filepath = malloc(pathSize);
-						snprintf(filepath, pathSize, "%s/%s", dirpath, buffer);
+					sendFile = fopen(filepath, "r");
 
-						sendFile = fopen(filepath, "r");
+					if (sendFile == 0) {
+						/* Let Client Know They Have Mistake :) */
+						badpath = "Given file name does not exist, please resend request. \n";
+						printf("%s", badpath);
+						sendto(sersock, badpath, (strlen(badpath)), 0, 
+								(struct sockaddr*) &client_socket, sizeof(client_socket));
 
-						if (sendFile == 0) {
-							/* Let Client Know They Have Mistake :) */
-							badpath = "Given file name does not exist, please resend request. \n";
-							printf("%s", badpath);
-							sendto(sersock, badpath, (strlen(badpath)), 0, 
-									(struct sockaddr*) &client_socket, sizeof(client_socket));
-							continue;
-
-						}
-				
-						lastbuffer = fread(fileBuffer, 1, CHUNK, sendFile);
-
-						while (lastbuffer == CHUNK) 
-						{
-							/* Send all 1024 bytes as a full chunk and clear buffer */
-							sendto(sersock, fileBuffer, (strlen(fileBuffer)), 0, 
-									(struct sockaddr*) &client_socket, sizeof(client_socket));
-							bzero(fileBuffer, CHUNK);
-		 					lastbuffer = fread(fileBuffer, 1, CHUNK, sendFile);					
-						}
-
-						if (lastbuffer % CHUNK == 0) 
-						{
-							/* Exact %1024 */
-							sendto(sersock, dollar, (strlen(dollar)), 0, 
-									(struct sockaddr*) &client_socket, sizeof(client_socket));
-							bzero(fileBuffer, CHUNK);
-							fclose(sendFile);
-						} 
-						else 
-						{
-							sendto(sersock, fileBuffer, (strlen(fileBuffer)), 0, 
-									(struct sockaddr*) &client_socket, sizeof(client_socket));
-							bzero(fileBuffer, CHUNK);
-							fclose(sendFile);
-						}
-
-						printf("Sent over file at %s to client\n", filepath);
-
+			
+						logCounter = 0;
 						logFile = fopen(logpath, "a+");
-						while (logFile == 0) 
+						
+						while (logFile == 10) 
 						{
+
 							/* Does its best to open a log file */
 							printf("Log file cannot be created. Attempting again\n");
 							if (logCounter == 100) 
 							{
-								printf("Log file cannot be created. Giving Up\n");
+								printf("Log file cannot be created. Giving Up.\n");
 								exit(0);
 							}
 
 							logCounter += 1;
 							logFile = fopen("log", "a+");
-						}
-						flock(logFile, LOCKEX);
-						//writeToLog();
-						flock(logFile, LOCKUN);
-						fclose(logFile);
 
-						break;
+						}
+
+						
+						flock(logFile, LOCK_EX);
+						fprintf(logFile, "<%s> <%d> <%s> <%s> <%s>\n", clientIP,
+									clientPort, filesend, strstartTime, badtransmission);
+						flock(logFile, LOCK_UN);
+						fclose(logFile);
+						continue;
 
 					}
+		
+					lastbuffer = fread(fileBuffer, 1, CHUNK, sendFile);
+
+					while (lastbuffer == CHUNK) 
+					{
+						/* Send all 1024 bytes as a full chunk and clear buffer */
+						sendto(sersock, fileBuffer, (strlen(fileBuffer)), 0, 
+								(struct sockaddr*) &client_socket, sizeof(client_socket));
+						bzero(fileBuffer, CHUNK);
+ 						lastbuffer = fread(fileBuffer, 1, CHUNK, sendFile);
+						continue;					
+					}
+
+					if (lastbuffer % CHUNK == 0) 
+					{
+						/* Exact %1024 */
+						sendto(sersock, dollar, (strlen(dollar)), 0, 
+								(struct sockaddr*) &client_socket, sizeof(client_socket));
+						bzero(fileBuffer, CHUNK);
+						fclose(sendFile);
+					} 
+					else 
+					{
+						sendto(sersock, fileBuffer, (strlen(fileBuffer)), 0, 
+								(struct sockaddr*) &client_socket, sizeof(client_socket));
+						bzero(fileBuffer, CHUNK);
+						fclose(sendFile);
+					}
+
+					printf("Sent over file at %s to client\n", filepath);
+
+
+					finTime = time(NULL);
+					strfinTime = ctime(&finTime);
+					strtok(strfinTime, "\n"); 
+					logCounter = 0;
+					logFile = fopen(logpath, "a+");
+					while (logFile == 0) 
+					{
+						/* Does its best to open a log file */
+						printf("Log file cannot be created. Attempting again\n");
+						if (logCounter == 10) 
+						{
+							printf("Log file cannot be created. Giving Up\n");
+							exit(0);
+						}
+
+						logCounter += 1;
+						logFile = fopen("log", "a+");
+					}
+
+					flock(logFile, LOCK_EX);
+					//printf("Wrting to Log\n");
+					fprintf(logFile, "<%s> <%d> <%s> <%s> <%s>\n", clientIP,
+							clientPort, filesend, strstartTime, strfinTime);
+					flock(logFile, LOCK_UN);
+					fclose(logFile);
+
+					break;
+
 				}
 			}
 
-		break;
 		}
 		
 
