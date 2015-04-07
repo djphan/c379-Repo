@@ -1,13 +1,10 @@
 CC=gcc 
 CFLAGS=-Wall -Wextra -m32 -std=c99
 
-make all: banker.o banker
+make all: banker
 
-banker.o: banker.c banker.h
-	$(CC) $(CFLAGS) -c banker.c
-
-banker: banker.o
-	$(CC) $(CFLAGS) -o banker banker.o
+banker: banker.c
+	$(CC) $(CFLAGS) -o banker banker.c
 
 clean:
 	-rm -rf *.o banker *.c~ *.h~ makefile~
