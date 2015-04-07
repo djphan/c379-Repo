@@ -7,6 +7,8 @@
 #include <sys/types.h>
      
 #define INPUT_BUFFER 128
+#define ANSI_UNDERLINED_PRE  "\033[4m"
+#define ANSI_UNDERLINED_POST "\033[0m"
 
 /* Global Variables */
 int sim_time = 1;
@@ -22,15 +24,82 @@ void exitHandler(int signum)
 	exit(0);
 }
 
+
+void printSnapshot(int *currentResources, int *totalResources, int numResources, 
+				   int **currentAllocation, int **currentRequest, 
+				   int **totalProcess, int numProcesses)
+{
+	/* Print Snapshot Here */
+	printf(ANSI_UNDERLINED_PRE);
+	printf("Currently Allocation");
+	printf(ANSI_UNDERLINED_POST);
+	printf("\n");
+
+	for (int k=0; k<numProcesses; k++)
+	{
+		printf("P%d:", k+1);
+		for (int j=0; j<numResources; j++)
+		{
+			printf(" %d ", currentAllocation[k][j]);
+		}
+		printf("\n");
+	}
+	printf("\n");
+
+	printf(ANSI_UNDERLINED_PRE);
+	printf("Currently Requesting");
+	printf(ANSI_UNDERLINED_POST);
+	printf("\n");
+
+	for (int k=0; k<numProcesses; k++)
+	{
+		printf("P%d:", k+1);
+		for (int j=0; j<numResources; j++)
+		{
+			printf(" %d ", currentRequest[k][j]);
+		}
+		printf("\n");
+	}
+	printf("\n");
+
+	printf(ANSI_UNDERLINED_PRE);
+	printf("Current Resources");
+	printf(ANSI_UNDERLINED_POST);
+	printf("\n");
+	for (int j=0; j<numResources; j++){
+		printf("%d ", currentResources[j]);
+	}
+	printf("\n\n");
+	
+	printf(ANSI_UNDERLINED_PRE);
+	printf("Maximum Possible Requests");
+	printf(ANSI_UNDERLINED_POST);
+	printf("\n");
+
+	for (int k=0; k<numProcesses; k++)
+	{
+		printf("P%d:", k+1);
+		for (int j=0; j<numResources; j++)
+		{
+			printf(" %d ", totalProcess[k][j]);
+		}
+		printf("\n");
+	}
+	printf("\n");
+
+	printf(ANSI_UNDERLINED_PRE);
+	printf("Maximum Resources");
+	printf(ANSI_UNDERLINED_POST);
+	printf("\n");
+	for (int j=0; j<numResources; j++){
+		printf("%d ", totalResources[j]);
+	}
+	printf("\n\n");
+	sleep(2);
+}
+
 int main() 
 {
-	for (int i =0; i<100; i++)
-	{
-		printf("%d\n", rand()%1);
-	}
-
-	exit(0);
-
 	int numResources, resouceTok, *totalResources, *currentResources;
 	int numProcesses, **totalProcess, **currentRequest, **currentAllocation, *processStatus;
 	int actionflag = 0, waitflag = 0, releaseflag, releaseToken=0;
@@ -237,24 +306,29 @@ int main()
 							} else {
 								printf("%d,", currentRequest[i][j]);
 							}
-							
-							/* Release all but 1 resource and set matrices accordingly */
-							if (currentAllocation[i][j] == 0) {
-								currentResources[j] = currentResources[j] - 1;
-								currentAllocation[i][j] = 1;
-								currentRequest[i][j] = 0;
-							} 
-							else 
+
+							if (currentAllocation[i][j] == 0)
 							{
-								currentResources[j] += currentAllocation[i][j] - 1;
-								currentAllocation[i][j] = 1;
-								currentRequest[i][j] = 0;
+								currentResources[j] = currentResources[j] - currentRequest[i][j];
+							} else 
+							{
+								currentResources[j] = currentResources[j] - currentAllocation[i][j] - 1;
 							}
 							
+							currentAllocation[i][j] = currentRequest[i][j];
+							currentRequest[i][j] = 0;
+						
 						}
 						printf(") from P%d has been granted\n", i+1);
 						processStatus[i] = 1;
-						/*Print Snapshot Here */
+
+						/* Print Snapshot */
+						printSnapshot(currentResources, totalResources, numResources, 
+				   					  currentAllocation, currentRequest, 
+				  		              totalProcess, numProcesses);
+						sleep(2);
+
+
 					}
 				}
 
@@ -297,7 +371,11 @@ int main()
 
 						/* Set flag to completed */
 						processStatus[i] = 1;
-						/*Print Snapshot Here */
+						/* Print Snapshot Here */
+						printSnapshot(currentResources, totalResources, numResources, 
+				   					  currentAllocation, currentRequest, 
+				  		              totalProcess, numProcesses);
+						sleep(2);
 					} 
 					else 
 					{
@@ -314,7 +392,7 @@ int main()
 							{
 								releaseToken = rand()%currentAllocation[i][j];
 							}
-							
+
 							currentAllocation[i][j] = currentAllocation[i][j] - releaseToken;
 							currentResources[j] += releaseToken;
 
@@ -336,8 +414,8 @@ int main()
 				/* Will do nothing */
 				else
 				{
-					printf("P%d continues with no further request\n", i+1);
-					sleep(2);
+					/* printf("P%d executes no further request\n", i+1); */
+					sleep(1);
 					continue;
 				} 
 
@@ -387,6 +465,10 @@ int main()
 						printf(") from P%d has been granted\n", i+1);
 						processStatus[i] = 1;
 						/*Print Snapshot Here */
+						printSnapshot(currentResources, 	totalResources, numResources, 
+				   					  currentAllocation, currentRequest, 
+				  		              totalProcess, numProcesses);
+						sleep(2);
 					}
 				}
 			}
