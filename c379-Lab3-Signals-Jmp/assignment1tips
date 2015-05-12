@@ -1,0 +1,19 @@
+2^32 total 4 294 967 296
+
+Jump by page 4095
+Max number
+Total Iterations 1 048 576
+
+read/write 1 byte
+unsigned long i;
+for i = 0; i< 0xFFFFFFFF ; i += 4096
+{
+	char * c, temp = 0
+	c = (char *)i;
+	temp = *c // execute = read access
+	// handle segmentation fault
+	*c = temp // execute = write access
+
+	// when we reach 0xFFFFFFF we will overflow
+	// think about address next address > current address 
+}
